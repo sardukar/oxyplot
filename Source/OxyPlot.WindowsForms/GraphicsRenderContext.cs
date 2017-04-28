@@ -305,7 +305,7 @@ namespace OxyPlot.WindowsForms
 
                 this.g.TranslateTransform((float)p.X, (float)p.Y);
                 
-                var layoutRectangle = new RectangleF(0, 0, size.Width, size.Height);
+                var layoutRectangle = new RectangleF(0, 0, size.Width + 0.5f, size.Height + 0.5f);
                 if (Math.Abs(rotate) > double.Epsilon)
                 {
                     this.g.RotateTransform((float)rotate);
