@@ -46,6 +46,11 @@ namespace OxyPlot.WindowsForms
         private readonly Dictionary<OxyColor, Brush> brushes = new Dictionary<OxyColor, Brush>();
 
         /// <summary>
+        /// The font cache.
+        /// </summary>
+        private readonly Dictionary<string, Font> fontCache = new Dictionary<string, Font>();
+
+        /// <summary>
         /// The string format.
         /// </summary>
         private readonly StringFormat stringFormat;
@@ -260,65 +265,65 @@ namespace OxyPlot.WindowsForms
 
             var fontStyle = fontWeight < 700 ? FontStyle.Regular : FontStyle.Bold;
 
-            using (var font = CreateFont(fontFamily, fontSize, fontStyle))
+            var font = CreateFont(fontFamily, fontSize, fontStyle);
+            
+            this.stringFormat.Alignment = StringAlignment.Near;
+            this.stringFormat.LineAlignment = StringAlignment.Near;
+            var size = this.g.MeasureString(text, font, int.MaxValue, this.stringFormat);
+            if (maxSize != null)
             {
-                this.stringFormat.Alignment = StringAlignment.Near;
-                this.stringFormat.LineAlignment = StringAlignment.Near;
-                var size = this.g.MeasureString(text, font, int.MaxValue, this.stringFormat);
-                if (maxSize != null)
+                if (size.Width > maxSize.Value.Width)
                 {
-                    if (size.Width > maxSize.Value.Width)
-                    {
-                        size.Width = (float)maxSize.Value.Width;
-                    }
-
-                    if (size.Height > maxSize.Value.Height)
-                    {
-                        size.Height = (float)maxSize.Value.Height;
-                    }
+                    size.Width = (float)maxSize.Value.Width;
                 }
 
-                float dx = 0;
-                if (halign == HorizontalAlignment.Center)
+                if (size.Height > maxSize.Value.Height)
                 {
-                    dx = -size.Width / 2;
+                    size.Height = (float)maxSize.Value.Height;
                 }
-
-                if (halign == HorizontalAlignment.Right)
-                {
-                    dx = -size.Width;
-                }
-
-                float dy = 0;
-                this.stringFormat.LineAlignment = StringAlignment.Near;
-                if (valign == VerticalAlignment.Middle)
-                {
-                    dy = -size.Height / 2;
-                }
-
-                if (valign == VerticalAlignment.Bottom)
-                {
-                    dy = -size.Height;
-                }
-
-                var graphicsState = this.g.Save();
-
-                this.g.TranslateTransform((float)p.X, (float)p.Y);
-                
-                var layoutRectangle = new RectangleF(0, 0, size.Width + 0.5f, size.Height + 0.5f);
-                if (Math.Abs(rotate) > double.Epsilon)
-                {
-                    this.g.RotateTransform((float)rotate);
-                    
-                    layoutRectangle.Height += (float)(fontSize / 18.0);
-                }
-
-                this.g.TranslateTransform(dx, dy);
-
-                this.g.DrawString(text, font, fill.ToBrush(), layoutRectangle, this.stringFormat);
-
-                this.g.Restore(graphicsState);
             }
+
+            float dx = 0;
+            if (halign == HorizontalAlignment.Center)
+            {
+                dx = -size.Width / 2;
+            }
+
+            if (halign == HorizontalAlignment.Right)
+            {
+                dx = -size.Width;
+            }
+
+            float dy = 0;
+            this.stringFormat.LineAlignment = StringAlignment.Near;
+            if (valign == VerticalAlignment.Middle)
+            {
+                dy = -size.Height / 2;
+            }
+
+            if (valign == VerticalAlignment.Bottom)
+            {
+                dy = -size.Height;
+            }
+
+            var graphicsState = this.g.Save();
+
+            this.g.TranslateTransform((float)p.X, (float)p.Y);
+                
+            var layoutRectangle = new RectangleF(0, 0, size.Width + 0.5f, size.Height + 0.5f);
+            if (Math.Abs(rotate) > double.Epsilon)
+            {
+                this.g.RotateTransform((float)rotate);
+                    
+                layoutRectangle.Height += (float)(fontSize / 18.0);
+            }
+
+            this.g.TranslateTransform(dx, dy);
+
+            this.g.DrawString(text, font, fill.ToBrush(), layoutRectangle, this.stringFormat);
+
+            this.g.Restore(graphicsState);
+            
         }
 
         /// <summary>
@@ -337,13 +342,13 @@ namespace OxyPlot.WindowsForms
             }
 
             var fontStyle = fontWeight < 700 ? FontStyle.Regular : FontStyle.Bold;
-            using (var font = CreateFont(fontFamily, fontSize, fontStyle))
-            {
-                this.stringFormat.Alignment = StringAlignment.Near;
-                this.stringFormat.LineAlignment = StringAlignment.Near;
-                var size = this.g.MeasureString(text, font, int.MaxValue, this.stringFormat);
-                return new OxySize(size.Width, size.Height);
-            }
+            var font = CreateFont(fontFamily, fontSize, fontStyle);
+            
+            this.stringFormat.Alignment = StringAlignment.Near;
+            this.stringFormat.LineAlignment = StringAlignment.Near;
+            var size = this.g.MeasureString(text, font, int.MaxValue, this.stringFormat);
+            return new OxySize(size.Width, size.Height);
+            
         }
 
         /// <summary>
@@ -445,6 +450,12 @@ namespace OxyPlot.WindowsForms
             {
                 brush.Dispose();
             }
+
+            // dispose fonts
+            foreach (var font in fontCache)
+            {
+                font.Value.Dispose();
+            }
         }
 
         /// <summary>
@@ -454,9 +465,19 @@ namespace OxyPlot.WindowsForms
         /// <param name="fontSize">Size of the font.</param>
         /// <param name="fontStyle">The font style.</param>
         /// <returns>A font</returns>
-        private static Font CreateFont(string fontFamily, double fontSize, FontStyle fontStyle)
+        private Font CreateFont(string fontFamily, double fontSize, FontStyle fontStyle)
         {
-            return new Font(fontFamily, (float)fontSize * FontsizeFactor, fontStyle);
+            string key = fontFamily + fontSize.ToString() + fontStyle.ToString();
+            if (fontCache.ContainsKey(key))
+            {
+                return fontCache[key];
+            }
+            else
+            {
+                var fnt = new Font(fontFamily, (float)fontSize * FontsizeFactor, fontStyle);
+                fontCache.Add(key, fnt);
+                return fnt;
+            }
         }
 
         /// <summary>
